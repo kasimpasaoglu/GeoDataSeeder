@@ -1,0 +1,4 @@
+- Scaffold Calistir
+  - `dotnet ef dbcontext scaffold "CONNTECTION_STRING_BURAYA" Microsoft.EntityFrameworkCore.SqlServer -o Models -c GeoDbContext --schema geo`
+  - NOT: Tablolari DB'deki geo schema'si icine koyarak scaffold ile sadece o schema'yi aliyorum, diger tablolar ile isimiz yok.
+- `rawJsonData` klasorunu `bin/Debug/net9.0` klasoru icine tasi. son hali boyle olmali `bin/Debug/net9.0/rawJsonData/turkish-citizen.json`
