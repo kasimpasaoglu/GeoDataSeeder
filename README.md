@@ -1,4 +1,4 @@
 - Scaffold Calistir
-  - `dotnet ef dbcontext scaffold "CONNTECTION_STRING_BURAYA" Microsoft.EntityFrameworkCore.SqlServer -o Models -c GeoDbContext --schema geo`
+  - `dotnet ef dbcontext scaffold "Host=ep-shy-frog-agj5q5e5-pooler.c-2.eu-central-1.aws.neon.tech; Database=neondb; Username=neondb_owner; Password=npg_hey7HZro3Jux; SSL Mode=VerifyFull; Channel Binding=Require;" Npgsql.EntityFrameworkCore.PostgreSQL -o Models -c GeoDbContext --schema geo`
   - NOT: Tablolari DB'deki geo schema'si icine koyarak scaffold ile sadece o schema'yi aliyorum, diger tablolar ile isimiz yok.
 - `rawJsonData` klasorunu `bin/Debug/net9.0` klasoru icine tasi. son hali boyle olmali `bin/Debug/net9.0/rawJsonData/turkish-citizen.json`

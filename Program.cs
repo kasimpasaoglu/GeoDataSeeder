@@ -1,63 +1,90 @@
 ﻿using System.Text.Json;
-using GeoDataSeeder.Models;
+using GeoDataSeeder.Persistence.Scaffold;
 
 
+await using var context = new GeoDbContext();
 
-using var context = new GeoDbContext();
-
-var jsonText = File.ReadAllText("rawJsonData/turkish-citizen.json"); // json baska yerde ise yolu degistir
+var jsonText = File.ReadAllText("/Users/kasimpasaoglu/RiderProjects/GeoDataSeeder/rawJsonData/turkish-citizen.json"); // json baska yerde ise yolu degistir
 Console.WriteLine("JSON verisi yükleniyor...");
+
 var cityList = JsonSerializer.Deserialize<List<JsonCity>>(jsonText);
 Console.WriteLine($"✓ JSON verisi yüklendi. Toplam şehir: {cityList.Count}");
 
-var countryId = Guid.NewGuid(); // Guid For Country
-context.Countries.Add(new Country
+await using var tx = await context.Database.BeginTransactionAsync();
+
+try
 {
-    Id = countryId,
-    Name = "Türkiye",
-    Code = "TR"
-});
-
-Console.WriteLine($"✓ Ülke verisi eklendi: Türkiye (TR) :{countryId}");
-
-foreach (var city in cityList)
-{
-    var cityId = Guid.NewGuid();
-
-    Console.WriteLine($"Sehir Ekleniyor-> {city.il_adi} ({city.il_id}) :{cityId}");
-
-    context.Cities.Add(new City
+    // (Opsiyonel) ChangeTracker maliyetini düşürür
+    context.ChangeTracker.AutoDetectChangesEnabled = false;
+    
+    // 1) Ülke
+    var countryId = Guid.NewGuid();
+    context.Countries.Add(new Country
     {
-        Id = cityId,
-        Name = city.il_adi,
-        Code = city.il_id.PadLeft(2, '0'),
-        CountryId = countryId
+        Id = countryId,
+        Name = "Türkiye",
+        Code = "TR"
     });
 
-    foreach (var district in city.ilceler)
+    await context.SaveChangesAsync();      // ülkeyi DB’ye yaz
+    context.ChangeTracker.Clear();         // tracker temizle
+    
+    // 2) Şehir şehir ekle + her şehirde SaveChanges
+    foreach (var city in cityList)
     {
-        var districtId = Guid.NewGuid();
-        Console.WriteLine($"Ilce Ekleniyor-> {district.ilce_adi} ({district.ilce_id}) :{districtId}");
+        var cityId = Guid.NewGuid();
 
-        context.Districts.Add(new District
+        context.Cities.Add(new City
         {
-            Id = districtId,
-            Name = district.ilce_adi,
-            CityId = cityId
+            Id = cityId,
+            Name = city.il_adi,
+            Code = city.il_id.PadLeft(2, '0'),
+            CountryId = countryId
         });
 
-        foreach (var neighbourhood in district.mahalleler)
+        Console.WriteLine($"Sehir ekleniyor: {city.il_adi}");
+
+        foreach (var district in city.ilceler)
         {
-            context.Neighborhoods.Add(new Neighborhood
+            var districtId = Guid.NewGuid();
+
+            context.Districts.Add(new District
             {
-                Id = Guid.NewGuid(),
-                Name = neighbourhood.mahalle_adi,
-                DistrictId = districtId
+                Id = districtId,
+                Name = district.ilce_adi,
+                CityId = cityId
             });
+
+            Console.WriteLine($"Ilce ekleniyor: {district.ilce_adi}");
+
+            foreach (var neighbourhood in district.mahalleler)
+            {
+                context.Neighborhoods.Add(new Neighborhood
+                {
+                    Id = Guid.NewGuid(),
+                    Name = neighbourhood.mahalle_adi,
+                    DistrictId = districtId
+                });
+                Console.WriteLine($"Mahalle ekleniyor: {neighbourhood.mahalle_adi}");
+            }
         }
+
+        Console.WriteLine($"Sehir Eklendi: {city.il_adi}, Ilceler: {city.ilceler.Count}, Mahalleler: {city.ilceler.Sum(i => i.mahalleler.Count)}");
+
+        await context.SaveChangesAsync();  // bu şehir + ilçeler + mahalleler
+        context.ChangeTracker.Clear();     // memory şişmesini engeller
     }
+    
+    await tx.CommitAsync();
+    Console.WriteLine("✓ Adres verileri başarıyla yüklendi.");
 }
-
-await context.SaveChangesAsync();
+catch
+{
+    await tx.RollbackAsync();
+    throw;
+}
+finally
+{
+    context.ChangeTracker.AutoDetectChangesEnabled = true;
+}
 Console.WriteLine("✓ Adres verileri başarıyla yüklendi.");
-
